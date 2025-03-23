@@ -1,0 +1,9 @@
+*.txt
+# generated wave files
+*.fst
+
+# custom trace files
+*.json
+
+# Dumped simulation data
+hexfiles/*.txt
