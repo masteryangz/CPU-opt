@@ -10,8 +10,9 @@
  *
  * See wiki page "Synchronous Caches" for details.
  */
+`include "mips_core.svh"
 
-module pr_f2d (
+module pr_i2d (
 	input clk,    // Clock
 	input rst_n,  // Synchronous reset active low
 

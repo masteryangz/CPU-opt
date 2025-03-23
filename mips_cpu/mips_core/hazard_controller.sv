@@ -14,89 +14,75 @@
  * See wiki page "Hazards" for details.
  * See wiki page "Branch and Jump" for details of branch and jump instructions.
  */
+`include "mips_core.svh"
 
 `ifdef SIMULATION
 import "DPI-C" function void stats_event (input string e);
 `endif
 
-/*
-	Every possible hazard:
-
-	Fetch stage
-		- cache miss
-			-> stall fetch
-	Commit stage
-		- branch result != branch prediction
-			-> flush pipeline and load new pc
-		- commit queue is full
-			-> stall pipeline (fetch, decode, issue)
-*/
-
 module hazard_controller (
-	input logic clk,
-	input logic rst_n,
+	input clk,    // Clock
+	input rst_n,  // Synchronous reset active low
 
-	// From (Fetch stage)
-	input cache_output_t F_i_cache_output,
-	
-	// From (Decode stage)
-	input logic         D_prediction_valid,
-	input BranchOutcome D_prediction,
-	
-	// From (Commit stage)
-	branch_result_ifc.in C_branch_result,
-	input logic          C_queue_overflow,
+	// Feedback from IF
+	cache_output_ifc.in if_i_cache_output,
+	// Feedback from DEC
+	pc_ifc.in dec_pc,
+	branch_decoded_ifc.hazard dec_branch_decoded,
+	// Feedback from EX
+	pc_ifc.in ex_pc,
+	input lw_hazard,
+	branch_result_ifc.in ex_branch_result,
+	// Feedback from MEM
+	input mem_done,
 
 	// Hazard control output
-	hazard_control_ifc.out fetch_hc,
-	hazard_control_ifc.out decode_hc,
-	hazard_control_ifc.out rename_hc,
-	hazard_control_ifc.out issue_hc,
-	hazard_control_ifc.out commit_hc,
+	hazard_control_ifc.out i2i_hc,
+	hazard_control_ifc.out i2d_hc,
+	hazard_control_ifc.out d2e_hc,
+	hazard_control_ifc.out e2m_hc,
+	hazard_control_ifc.out m2w_hc,
 
 	// Load pc output
 	load_pc_ifc.out load_pc
 );
-	/*
-	branch_decoded_ifc dec_branch_decoded ();
-	branch_result_ifc ex_branch_result    ();
-	Address ex_pc;
 
-/*
 	branch_controller BRANCH_CONTROLLER (
 		.clk, .rst_n,
-		
-		.dec_pc('0),
+		.dec_pc,
 		.dec_branch_decoded,
-
 		.ex_pc,
 		.ex_branch_result
 	);
-	*/
 
-	// Potential hazards
-	logic ic_miss;			    // I-Cache miss
-	logic commit_misprediction; // Branch prediction wrong
-	//logic dec_overload;		// Branch predict taken or Jump
-	//logic dc_miss;			// D cache miss
+	// We have total 6 potential hazards
+	logic ic_miss;			// I cache miss
+	// Gone without delay slots:
+	//logic ds_miss;			// Delay slot miss
+	logic dec_overload;		// Branch predict taken or Jump
+	logic ex_overload;		// Branch prediction wrong
+	//    lw_hazard;		// Load word hazard (input from forward unit)
+	logic dc_miss;			// D cache miss
 
 	// Determine if we have these hazards
 	always_comb
 	begin
-		ic_miss = !F_i_cache_output.valid;
-
-		commit_misprediction = C_branch_result.valid
-			& (C_branch_result.prediction != C_branch_result.outcome);
-
+		ic_miss = ~if_i_cache_output.valid;
 		//ds_miss = ic_miss & dec_branch_decoded.valid;
-		/* dec_overload = dec_branch_decoded.valid
+		dec_overload = dec_branch_decoded.valid
 			& (dec_branch_decoded.is_jump
-				| (dec_branch_decoded.prediction == TAKEN));*/
+				| (dec_branch_decoded.prediction == TAKEN));
+		ex_overload = ex_branch_result.valid
+			& (ex_branch_result.prediction != ex_branch_result.outcome);
 		// lw_hazard is determined by forward unit.
-		/* dc_miss = ~mem_done; */
+		dc_miss = ~mem_done;
 	end
 
 	// Control signals
+	logic if_stall, if_flush;
+	logic dec_stall, dec_flush;
+	logic ex_stall, ex_flush;
+	logic mem_stall, mem_flush;
 	// wb doesn't need to be stalled or flushed
 	// i.e. any data goes to wb is finalized and waiting to be commited
 
@@ -126,96 +112,105 @@ module hazard_controller (
 	 */
 
 	always_comb
-	begin : to_fetch
-		// never want to flush, flushing would erase the program counter
-		fetch_hc.flush = 1'b0;
-		fetch_hc.stall = 1'b0;
+	begin : handle_if
+		if_stall = 1'b0;
+		if_flush = 1'b0;
 
 		if (ic_miss)
-			fetch_hc.stall = 1'b1;
+		begin
+			if_stall = 1'b1;
+			if_flush = 1'b1;
+		end
 
-		if (commit_misprediction)
-			fetch_hc.stall = 1'b0;
-			
-		if (D_prediction_valid && (D_prediction == TAKEN))
-			fetch_hc.stall = 1'b0;
-			
-		if (decode_hc.stall)
-			fetch_hc.stall = 1'b1;
+		if (ex_overload)
+		begin
+			if_stall = 1'b0;
+			if_flush = 1'b1;
+		end
+
+		if(dec_overload) begin
+			if_stall = 1'b0;
+			if_flush = 1'b1;
+		end
+
+		if (dec_stall)
+			if_stall = 1'b1;
 	end
 
 	always_comb
-	begin : to_decode
-		decode_hc.stall = 1'b0;
-		decode_hc.flush = 1'b0;
-			
-		if (rename_hc.stall)
-			decode_hc.stall = 1'b1;
-			
-		if (!decode_hc.stall && D_prediction_valid && (D_prediction == TAKEN))
-			decode_hc.flush = 1'b1;
+	begin : handle_dec
+		dec_stall = 1'b0;
+		dec_flush = 1'b0;
 
-		if (commit_misprediction)
-			decode_hc.flush = 1'b1;
-	end
-	
-	always_comb
-	begin : to_rename
-		rename_hc.stall = 1'b0;
-		rename_hc.flush = 1'b0;
+		//if (ds_miss | lw_hazard)
+		if (lw_hazard)
+		begin
+			dec_stall = 1'b1;
+			dec_flush = 1'b1;
+		end
 
-		if (commit_misprediction)
-			rename_hc.flush = 1'b1;
+		if (ex_stall)
+			dec_stall = 1'b1;
 
-		if (C_queue_overflow)
-			rename_hc.stall = 1'b1;
-	end
-	
-	always_comb
-	begin : to_issue
-		issue_hc.stall = 1'b0;
-		issue_hc.flush = 1'b0;
-		
-		if (commit_misprediction)
-			issue_hc.flush = 1'b1;
+		if(ex_overload)
+			dec_flush = 1'b1;
 	end
 
 	always_comb
-	begin : to_commit
-		commit_hc.stall = 1'b0;
-		commit_hc.flush = 1'b0;
-		
-		if (commit_misprediction)
-			commit_hc.flush = 1'b1;
+	begin : handle_ex
+		ex_stall = mem_stall;
+		ex_flush = 1'b0;
 	end
 
+	always_comb
+	begin : handle_mem
+		mem_stall = dc_miss;
+		mem_flush = dc_miss;
+	end
+
+	// Now distribute the control signals to each pipeline registers
 	always_comb
 	begin
-		load_pc.we     = commit_misprediction;
-		load_pc.new_pc = C_branch_result.recovery_target;
+		i2i_hc.flush = 1'b0;
+		i2i_hc.stall = if_stall;
+		i2d_hc.flush = if_flush;
+		i2d_hc.stall = dec_stall;
+		d2e_hc.flush = dec_flush;
+		d2e_hc.stall = ex_stall;
+		e2m_hc.flush = ex_flush;
+		e2m_hc.stall = mem_stall;
+		m2w_hc.flush = mem_flush;
+		m2w_hc.stall = 1'b0;
 	end
 
+	// Derive the load_pc
+	always_comb
+	begin
+		load_pc.we = dec_overload | ex_overload;
+		if (dec_overload)
+			load_pc.new_pc = dec_branch_decoded.target;
+		else
+			load_pc.new_pc = ex_branch_result.recovery_target;
+	end
 
 `ifdef SIMULATION
 	always_ff @(posedge clk)
 	begin
-		if (ic_miss)      stats_event("ic_miss");
-	//	if (ds_miss)      stats_event("ds_miss");
-	//	if (dec_overload) stats_event("dec_overload");
-	//	if (ex_overload)  stats_event("ex_overload");
-	//	if (lw_hazard)    stats_event("lw_hazard");
-	//	if (dc_miss)      stats_event("dc_miss");
-	//	if (if_stall)     stats_event("if_stall");
-	//	if (if_flush)     stats_event("if_flush");
-	//	if (dec_stall)    stats_event("dec_stall");
-	//	if (dec_flush)    stats_event("dec_flush");
-	//	if (ex_stall)     stats_event("ex_stall");
-	//	if (ex_flush)     stats_event("ex_flush");
-	//	if (mem_stall)    stats_event("mem_stall");
-	//	if (mem_flush)    stats_event("mem_flush");
-		if (commit_misprediction) stats_event("br_miss");
+		if (ic_miss) stats_event("ic_miss");
+		// if (ds_miss) stats_event("ds_miss");
+		if (dec_overload) stats_event("dec_overload");
+		if (ex_overload) stats_event("ex_overload");
+		if (lw_hazard) stats_event("lw_hazard");
+		if (dc_miss) stats_event("dc_miss");
+		if (if_stall) stats_event("if_stall");
+		if (if_flush) stats_event("if_flush");
+		if (dec_stall) stats_event("dec_stall");
+		if (dec_flush) stats_event("dec_flush");
+		if (ex_stall) stats_event("ex_stall");
+		if (ex_flush) stats_event("ex_flush");
+		if (mem_stall) stats_event("mem_stall");
+		if (mem_flush) stats_event("mem_flush");
 	end
 `endif
-
 
 endmodule

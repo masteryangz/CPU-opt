@@ -33,6 +33,8 @@
  * The arbiter is adding 1 cycle latency to both egress and ingress interfaces.
  */
 
+`include "mips_core.svh"
+
 module memory_arbiter #(
 		parameter WRITE_MASTERS = 1,
 		parameter READ_MASTERS = 2
@@ -64,7 +66,7 @@ module memory_arbiter #(
 
 	logic write_address_entity_ready[WRITE_MASTERS];
 	logic write_address_entity_valid[WRITE_MASTERS];
-	logic [8+ADDR_WIDTH-1:0] write_address_entity_payload[WRITE_MASTERS];
+	logic [8+`ADDR_WIDTH-1:0] write_address_entity_payload[WRITE_MASTERS];
 
 	generate
 	for (i = 0; i < WRITE_MASTERS; i++) begin : write_address_connection
@@ -80,7 +82,7 @@ module memory_arbiter #(
 	end
 	endgenerate
 
-	egress_priority_arbiter #(.COUNT(WRITE_MASTERS), .WIDTH(8+ADDR_WIDTH)) write_address_arbiter (
+	egress_priority_arbiter #(.COUNT(WRITE_MASTERS), .WIDTH(8+`ADDR_WIDTH)) write_address_arbiter (
 		.clk, .rst_n,
 		.ready(axi_write_address.AWREADY),
 		.valid(axi_write_address.AWVALID),
@@ -97,7 +99,7 @@ module memory_arbiter #(
 
 	logic write_data_entity_ready[WRITE_MASTERS];
 	logic write_data_entity_valid[WRITE_MASTERS];
-	logic [5+DATA_WIDTH-1:0] write_data_entity_payload[WRITE_MASTERS];
+	logic [5+`DATA_WIDTH-1:0] write_data_entity_payload[WRITE_MASTERS];
 
 	generate
 	for (i = 0; i < WRITE_MASTERS; i++) begin : write_data_connection
@@ -113,7 +115,7 @@ module memory_arbiter #(
 	end
 	endgenerate
 
-	egress_priority_arbiter #(.COUNT(WRITE_MASTERS), .WIDTH(5+DATA_WIDTH)) write_data_arbiter (
+	egress_priority_arbiter #(.COUNT(WRITE_MASTERS), .WIDTH(5+`DATA_WIDTH)) write_data_arbiter (
 		.clk, .rst_n,
 		.ready(axi_write_data.WREADY),
 		.valid(axi_write_data.WVALID),
@@ -162,7 +164,7 @@ module memory_arbiter #(
 
 	logic read_address_entity_ready[READ_MASTERS];
 	logic read_address_entity_valid[READ_MASTERS];
-	logic [8+ADDR_WIDTH-1:0] read_address_entity_payload[READ_MASTERS];
+	logic [8+`ADDR_WIDTH-1:0] read_address_entity_payload[READ_MASTERS];
 
 	generate
 	for (i = 0; i < READ_MASTERS; i++) begin : read_address_connection
@@ -178,7 +180,7 @@ module memory_arbiter #(
 	end
 	endgenerate
 
-	egress_priority_arbiter #(.COUNT(READ_MASTERS), .WIDTH(8+ADDR_WIDTH)) read_address_arbiter (
+	egress_priority_arbiter #(.COUNT(READ_MASTERS), .WIDTH(8+`ADDR_WIDTH)) read_address_arbiter (
 		.clk, .rst_n,
 		.ready(axi_read_address.ARREADY),
 		.valid(axi_read_address.ARVALID),
@@ -195,7 +197,7 @@ module memory_arbiter #(
 
 	logic read_data_entity_ready[READ_MASTERS];
 	logic read_data_entity_valid[READ_MASTERS];
-	logic [5+DATA_WIDTH-1:0] read_data_entity_payload[READ_MASTERS];
+	logic [5+`DATA_WIDTH-1:0] read_data_entity_payload[READ_MASTERS];
 
 	generate
 	for (i = 0; i < READ_MASTERS; i++) begin : read_data_connection
@@ -211,7 +213,7 @@ module memory_arbiter #(
 	end
 	endgenerate
 
-	ingress_splitter #(.COUNT(READ_MASTERS), .WIDTH(5+DATA_WIDTH)) read_data_splitter (
+	ingress_splitter #(.COUNT(READ_MASTERS), .WIDTH(5+`DATA_WIDTH)) read_data_splitter (
 		.clk, .rst_n,
 		.ready(axi_read_data.RREADY),
 		.valid(axi_read_data.RVALID),
@@ -304,7 +306,7 @@ module ingress_splitter #(
 	logic [3:0] pipe_id;
 
 	always_comb begin
-		ready = !pipe_valid || entity_ready[pipe_id]; // CHECK: is `[0]` correct here?
+		ready = !pipe_valid || entity_ready[pipe_id];
 	end
 
 	always_ff @(posedge clk) begin
@@ -319,7 +321,7 @@ module ingress_splitter #(
 
 	always_comb begin
 		for (int i = 0; i < COUNT; i++) begin
-			entity_valid[i] = pipe_valid && (pipe_id == i[3:0]);
+			entity_valid[i] = pipe_valid && (pipe_id == i);
 			entity_payload[i] = pipe_payload;
 		end
 	end

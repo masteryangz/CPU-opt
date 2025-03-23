@@ -11,13 +11,13 @@ OBJDUMPFLAG = -j .text -M hwr-names=numeric,cp0-names=numeric -D -z
 
 DEPS = custom_inst.h
 
-SRCS   := $(wildcard ./*.c)
+SRCS    := $(wildcard ./*.c)
 HEX    := $(patsubst %.c, %.hex, $(SRCS))
 DIS    := $(patsubst %.c, %.dis, $(SRCS))
 
 .PHONY : all clean
 
-all: $(HEX) $(DIS) test.hex test.dis
+all: $(HEX) $(DIS)
 
 %.o : %.c
 
@@ -26,9 +26,6 @@ all: $(HEX) $(DIS) test.hex test.dis
 
 start.o: start.s
 	$(CC) -c $(CFLAG) start.s
-
-test.o: test.s
-	$(CC) -c $(CFLAG) test.s
 
 %.s: %.c $(DEPS)
 	$(CC) -S $(CFLAG) $<
@@ -40,17 +37,11 @@ test.o: test.s
 	$(LD) -o $@ -T mips.ld $< start.o
 	$(OBJCOPY) $(OBJCOPYFLAG) $@ $@
 
-test.out: test.o test.mips.ld
-	$(LD) -o $@ -T test.mips.ld $<
-	$(OBJCOPY) $(OBJCOPYFLAG) $@ $@
-
 %.hex: %.out
 	readelf -x .text -x .data $^ | awk '$$1 ~ 0x {print $$2 RS $$3 RS $$4 RS $$5}' > $@
-	cp $@ ../hexfiles
 
 %.dis: %.out
 	$(OBJDUMP) $(OBJDUMPFLAG) $^ > $@
-	cp $@ ../hexfiles
 
 clean:
 	bash -i -c "rm -f *.o *.out *.dis *.gch *.hex !(start.s|!(*.s))"

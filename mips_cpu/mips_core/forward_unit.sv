@@ -11,6 +11,7 @@
  * See wiki page "Systemverilop Primer" section tasks for a potential bug in
  * this unit caused by using tasks incorrectly (due to sensitivity list)
  */
+`include "mips_core.svh"
 
 module forward_unit (
 	// Input from decoder
@@ -38,7 +39,7 @@ module forward_unit (
 
 		input logic condition;
 		input mips_core_pkg::MipsReg r_source;
-		input logic [DATA_WIDTH - 1 : 0] d_source;
+		input logic [`DATA_WIDTH - 1 : 0] d_source;
 		begin
 			if (uses_rs && (rs_addr == r_source) && condition)
 				out.rs_data = d_source;
@@ -51,7 +52,7 @@ module forward_unit (
 
 		input logic condition;
 		input mips_core_pkg::MipsReg r_source;
-		input logic [DATA_WIDTH - 1 : 0] d_source;
+		input logic [`DATA_WIDTH - 1 : 0] d_source;
 		begin
 			if (uses_rt && (rt_addr == r_source) && condition)
 				out.rt_data = d_source;
@@ -66,7 +67,7 @@ module forward_unit (
 
 		input logic condition;
 		input mips_core_pkg::MipsReg r_source;
-		input logic [DATA_WIDTH - 1 : 0] d_source;
+		input logic [`DATA_WIDTH - 1 : 0] d_source;
 		begin
 			check_forward_rs(uses_rs, rs_addr, condition, r_source, d_source);
 			check_forward_rt(uses_rt, rt_addr, condition, r_source, d_source);

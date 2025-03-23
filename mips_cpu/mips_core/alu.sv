@@ -10,12 +10,13 @@
  * It is also reponsible for reporting customized MTC0 instructions
  * to pass_done interface. See wiki page "Pass Done Interface" for details.
  */
+`include "mips_core.svh"
 
 interface alu_input_ifc ();
 	logic valid;
 	mips_core_pkg::AluCtl alu_ctl;
-	logic signed [DATA_WIDTH - 1 : 0] op1;
-	logic signed [DATA_WIDTH - 1 : 0] op2;
+	logic signed [`DATA_WIDTH - 1 : 0] op1;
+	logic signed [`DATA_WIDTH - 1 : 0] op2;
 
 	modport in  (input valid, alu_ctl, op1, op2);
 	modport out (output valid, alu_ctl, op1, op2);
@@ -23,7 +24,7 @@ endinterface
 
 interface alu_output_ifc ();
 	logic valid;
-	logic [DATA_WIDTH - 1 : 0] result;
+	logic [`DATA_WIDTH - 1 : 0] result;
 	mips_core_pkg::BranchOutcome branch_outcome;
 
 	modport in  (input valid, result, branch_outcome);
@@ -33,7 +34,7 @@ endinterface
 module alu (
 	alu_input_ifc.in in,
 	alu_output_ifc.out out,
-	output mtc0_t mtc0
+	output logic done
 );
 
 	always_comb
@@ -41,8 +42,7 @@ module alu (
 		out.valid = 1'b0;
 		out.result = '0;
 		out.branch_outcome = NOT_TAKEN;
-		mtc0.id = '0;
-		mtc0.data = in.op2;
+		done = 1'b0;
 
 		if (in.valid)
 		begin
@@ -57,8 +57,8 @@ module alu (
 				ALUCTL_AND:  out.result = in.op1 & in.op2;
 				ALUCTL_OR:   out.result = in.op1 | in.op2;
 				ALUCTL_XOR:  out.result = in.op1 ^ in.op2;
-				ALUCTL_SLT:  out.result = DATA_WIDTH'(in.op1 < in.op2);
-				ALUCTL_SLTU: out.result = DATA_WIDTH'(unsigned'(in.op1) < unsigned'(in.op2));
+				ALUCTL_SLT:  out.result = in.op1 < in.op2;
+				ALUCTL_SLTU: out.result = unsigned'(in.op1) < unsigned'(in.op2);
 				ALUCTL_SLL:  out.result = in.op1 << unsigned'(in.op2);
 				ALUCTL_SRL:  out.result = in.op1 >> unsigned'(in.op2);
 				ALUCTL_SRA:  out.result = in.op1 >>> unsigned'(in.op2);
@@ -67,10 +67,27 @@ module alu (
 				ALUCTL_SRAV: out.result = in.op2 >>> in.op1[4:0];
 				ALUCTL_NOR:  out.result = ~(in.op1 | in.op2);
 
-				// MTC0 -- redefined for our purposes.
-				ALUCTL_MTC0_PASS: begin mtc0.id = 2'd1; out.result = in.op2; end
-				ALUCTL_MTC0_FAIL: begin mtc0.id = 2'd2; out.result = in.op2; end
-				ALUCTL_MTC0_DONE: begin mtc0.id = 2'd3; out.result = in.op2; end
+				ALUCTL_MTC0_PASS:   // MTC0 -- redefined for our purposes.
+				begin
+				`ifdef SIMULATION
+					$display("%m (%t) PASS test %x", $time, in.op2);
+				`endif
+				end
+
+				ALUCTL_MTC0_FAIL:
+				begin
+				`ifdef SIMULATION
+					$display("%m (%t) FAIL test %x", $time, in.op2);
+				`endif
+				end
+
+				ALUCTL_MTC0_DONE:
+				begin
+					done = 1'b1;
+				`ifdef SIMULATION
+					$display("%m (%t) DONE test %x", $time, in.op2);
+				`endif
+				end
 
 				ALUCTL_BA:   out.branch_outcome = TAKEN;
 				ALUCTL_BEQ:  out.branch_outcome = in.op1 == in.op2     ? TAKEN : NOT_TAKEN;
