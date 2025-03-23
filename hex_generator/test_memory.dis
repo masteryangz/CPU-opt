@@ -1,0 +1,107 @@
+
+test_memory.out:     file format elf32-tradbigmips
+
+
+Disassembly of section .text:
+
+00000000 <_ftext>:
+   0:	24000000 	li	zero,0
+   4:	24010000 	li	at,0
+   8:	24020000 	li	v0,0
+   c:	24030000 	li	v1,0
+  10:	24040000 	li	a0,0
+  14:	24050000 	li	a1,0
+  18:	24060000 	li	a2,0
+  1c:	24070000 	li	a3,0
+  20:	24080000 	li	t0,0
+  24:	24090000 	li	t1,0
+  28:	240a0000 	li	t2,0
+  2c:	240b0000 	li	t3,0
+  30:	240c0000 	li	t4,0
+  34:	240d0000 	li	t5,0
+  38:	240e0000 	li	t6,0
+  3c:	240f0000 	li	t7,0
+  40:	24100000 	li	s0,0
+  44:	24110000 	li	s1,0
+  48:	24120000 	li	s2,0
+  4c:	24130000 	li	s3,0
+  50:	24140000 	li	s4,0
+  54:	24150000 	li	s5,0
+  58:	24160000 	li	s6,0
+  5c:	24170000 	li	s7,0
+  60:	24180000 	li	t8,0
+  64:	24190000 	li	t9,0
+  68:	241a0000 	li	k0,0
+  6c:	241b0000 	li	k1,0
+  70:	241c0000 	li	gp,0
+  74:	241d0000 	li	sp,0
+  78:	241e0000 	li	s8,0
+  7c:	241f0000 	li	ra,0
+  80:	3c1d0010 	lui	sp,0x10
+  84:	0c000035 	jal	d4 <begin>
+  88:	00000000 	nop
+  8c:	0380e025 	move	gp,gp
+  90:	409cb800 	mtc0	gp,$23
+  94:	00000000 	nop
+  98:	409cc800 	mtc0	gp,$25
+  9c:	08000027 	j	9c <_ftext+0x9c>
+  a0:	00000000 	nop
+  a4:	00000000 	nop
+  a8:	00000000 	nop
+  ac:	00000000 	nop
+
+000000b0 <fill>:
+  b0:	00001025 	move	v0,zero
+  b4:	24030064 	li	v1,100
+  b8:	ac820000 	sw	v0,0(a0)
+  bc:	24420001 	addiu	v0,v0,1
+  c0:	24840004 	addiu	a0,a0,4
+  c4:	1443fffc 	bne	v0,v1,b8 <fill+0x8>
+  c8:	00000000 	nop
+  cc:	03e00008 	jr	ra
+  d0:	00000000 	nop
+
+000000d4 <begin>:
+  d4:	27bdfe68 	addiu	sp,sp,-408
+  d8:	00001025 	move	v0,zero
+  dc:	24030064 	li	v1,100
+  e0:	afbd0190 	sw	sp,400(sp)
+  e4:	afbd0194 	sw	sp,404(sp)
+  e8:	8fa40194 	lw	a0,404(sp)
+  ec:	ac820000 	sw	v0,0(a0)
+  f0:	24840004 	addiu	a0,a0,4
+  f4:	24420001 	addiu	v0,v0,1
+  f8:	afa40194 	sw	a0,404(sp)
+  fc:	1443fffa 	bne	v0,v1,e8 <begin+0x14>
+ 100:	00000000 	nop
+ 104:	8fa20190 	lw	v0,400(sp)
+ 108:	24440190 	addiu	a0,v0,400
+ 10c:	00001025 	move	v0,zero
+ 110:	8fa30190 	lw	v1,400(sp)
+ 114:	8fa50190 	lw	a1,400(sp)
+ 118:	8c630000 	lw	v1,0(v1)
+ 11c:	24a50004 	addiu	a1,a1,4
+ 120:	afa50190 	sw	a1,400(sp)
+ 124:	00431021 	addu	v0,v0,v1
+ 128:	1485fff9 	bne	a0,a1,110 <begin+0x3c>
+ 12c:	00000000 	nop
+ 130:	24031356 	li	v1,4950
+ 134:	10430008 	beq	v0,v1,158 <begin+0x84>
+ 138:	00000000 	nop
+ 13c:	4082c000 	mtc0	v0,$24
+ 140:	24020069 	li	v0,105
+ 144:	4082c800 	mtc0	v0,$25
+ 148:	00001025 	move	v0,zero
+ 14c:	27bd0198 	addiu	sp,sp,408
+ 150:	03e00008 	jr	ra
+ 154:	00000000 	nop
+ 158:	4082b800 	mtc0	v0,$23
+ 15c:	24020069 	li	v0,105
+ 160:	4082c800 	mtc0	v0,$25
+ 164:	00001025 	move	v0,zero
+ 168:	27bd0198 	addiu	sp,sp,408
+ 16c:	03e00008 	jr	ra
+ 170:	00000000 	nop
+ 174:	00000000 	nop
+ 178:	00000000 	nop
+ 17c:	00000000 	nop

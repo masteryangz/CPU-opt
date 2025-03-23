@@ -1,0 +1,8 @@
+mips_core/mips_core_pkg.sv
+mips_core/memory_interfaces.sv
+mips_core/mips_core_interfaces.sv
+mips_core/alu.sv
+mips_core/decoder.sv
+mips_core/register_mapping_table.sv
+mips_core/store_queue.sv
+mips_core/mips_core.sv
