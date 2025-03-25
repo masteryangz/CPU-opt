@@ -7,3 +7,4 @@ alias m=make
 h() {
     cd ../hex_generator ; make ; cd ../mips_cpu
 }
+export DISPLAY=host.docker.internal:0
